@@ -4,6 +4,8 @@
             [compojure.route :as route :only [not-found]]
             [ring.util.response :as ring-response :only [redirect]]
             [ring.adapter.jetty :as ring-jetty :only [run-jetty]]
+            [ring.middleware.defaults :as ring-def :only [wrap-defaults site-defaults secure-site-defaults]]
+            [ring.middleware.basic-authentication :as ring-auth :only [wrap-basic-authentication]]
             ))
 
 (def ^:private counter (atom 0))
@@ -53,7 +55,7 @@
     {:status 404
      :body (format "No such short URL: %s\n" id)}))
 
-(defroutes app*
+(defroutes routes
   (GET "/" [] "Welcome!")
   (PUT "/:id" [url id] (retain url id))
   (POST "/" [url] (retain url))
@@ -61,8 +63,15 @@
   (GET "/list/" [] (concat (interpose "\n" (keys @mappings)) "\n"))
   (route/not-found "Sorry, there's nothing here.\n"))
 
+(defn authenticated? [name pass]
+  (and (= name "user")
+       (= pass "pass")))
+
 (def app
-  (handler/site app*))
+  (-> routes
+      ;;(ring-def/wrap-defaults ring-def/site-defaults)
+      (ring-auth/wrap-basic-authentication authenticated?)
+      handler/site))
 
 ;;(def server (ring-jetty/run-jetty #'app {:port 8080 :join? false}))
 ;;(.stop server)
